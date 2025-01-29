@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Multiplayer Chess Clock</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+      background-color: black;
+    }
+    .controls {
+      margin-bottom: 20px;
+    }
+    .clock-container {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .player {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: grey;
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      margin: 10px;
+      position: relative;
+    }
+    .player:hover .remove-btn {
+      opacity: 1;
+    }
+    .player.active {
+      border: 2px solid #4caf50;
+    }
+    .time {
+      font-size: 2.5em;
+      margin: 10px 0;
+    }
+    button {
+      cursor: pointer;
+      padding: 10px 20px;
+      font-size: 1em;
+      border: none;
+      border-radius: 5px;
+      background-color: #4caf50;
+      color: white;
+      transition: background-color 0.2s;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+    input {
+      text-align: center;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      padding: 5px;
+      margin-bottom: 10px;
+      width: 100px;
+      outline: none;
+    }
+    input:focus {
+      outline: 2px solid #4caf50;
+    }
+    .remove-btn {
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      background-color: #f44336;
+      color: white;
+      padding: 2px 6px;
+      font-size: 0.7em;
+      border-radius: 4px;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .remove-btn:hover {
+      background-color: #d32f2f;
+    }
+  </style>
+</head>
+<body>
+  <div class="controls">
+    <input type="number" id="countdown-minutes" placeholder="Minutes" min="0">
+    <input type="number" id="countdown-seconds" placeholder="Seconds" min="0" max="59">
+    <button id="add-player-btn">Add Player</button>
+    <button id="start-btn">Start</button>
+    <button id="pause-btn" style="display: none;">Pause</button>
+  </div>
+  <div class="clock-container" id="clock-container">
+  </div>
+
+  <script>
+    const clockContainer = document.getElementById('clock-container');
+    const countdownMinutesInput = document.getElementById('countdown-minutes');
+    const countdownSecondsInput = document.getElementById('countdown-seconds');
+    const addPlayerBtn = document.getElementById('add-player-btn');
+    const startBtn = document.getElementById('start-btn');
+    const pauseBtn = document.getElementById('pause-btn');
+
+    let players = [];
+    let activePlayerIndex = 0;
+    let timer = null;
+    let isPaused = false;
+
+    const updateClock = (timeEl, seconds) => {
+      const minutes = Math.floor(seconds / 60).toString().padStart(2, '0');
+      const secs = (seconds % 60).toString().padStart(2, '0');
+      timeEl.textContent = `${minutes}:${secs}`;
+    };
+
+    const startTimer = () => {
+      clearInterval(timer);
+      timer = setInterval(() => {
+        if (isPaused) return;
+
+        const activePlayer = players[activePlayerIndex];
+        activePlayer.time--;
+        updateClock(activePlayer.timeEl, activePlayer.time);
+
+        if (activePlayer.time <= 0) {
+          clearInterval(timer);
+          alert(`${activePlayer.name.value || 'Player ' + (activePlayerIndex + 1)}'s time is up!`);
+        }
+      }, 1000);
+    };
+
+    const switchPlayer = () => {
+      players[activePlayerIndex].container.classList.remove('active');
+      activePlayerIndex = (activePlayerIndex + 1) % players.length;
+      players[activePlayerIndex].container.classList.add('active');
+      startTimer();
+    };
+
+    const addPlayer = (name, minutes = 0, seconds = 0) => {
+      const countdownTime = minutes * 60 + seconds;
+
+      if (countdownTime <= 0) {
+        alert('Please enter a valid countdown time.');
+        return;
+      }
+
+      const playerContainer = document.createElement('div');
+      playerContainer.className = 'player';
+
+      const nameInput = document.createElement('input');
+      nameInput.type = 'text';
+      nameInput.placeholder = name || `Player ${players.length + 1}`;
+      nameInput.value = name;
+
+      const timeEl = document.createElement('div');
+      timeEl.className = 'time';
+      timeEl.textContent = `${Math.floor(countdownTime / 60).toString().padStart(2, '0')}:${(countdownTime % 60).toString().padStart(2, '0')}`;
+
+      const removeBtn = document.createElement('button');
+      removeBtn.className = 'remove-btn';
+      removeBtn.textContent = 'X';
+      removeBtn.addEventListener('click', () => {
+        clockContainer.removeChild(playerContainer);
+        players = players.filter(player => player.container !== playerContainer);
+      });
+
+      playerContainer.appendChild(nameInput);
+      playerContainer.appendChild(timeEl);
+      playerContainer.appendChild(removeBtn);
+
+      clockContainer.appendChild(playerContainer);
+
+      players.push({
+        name: nameInput,
+        time: countdownTime,
+        timeEl,
+        container: playerContainer
+      });
+    };
+
+    addPlayerBtn.addEventListener('click', () => {
+      const minutes = parseInt(countdownMinutesInput.value, 10) || 0;
+      const seconds = parseInt(countdownSecondsInput.value, 10) || 0;
+      addPlayer(null, minutes, seconds);
+    });
+
+    startBtn.addEventListener('click', () => {
+      if (players.length === 0) {
+        alert('Please add at least one player.');
+        return;
+      }
+      if (timer) clearInterval(timer);
+      activePlayerIndex = 0;
+      players.forEach(player => player.container.classList.remove('active'));
+      players[0].container.classList.add('active');
+      startTimer();
+
+      addPlayerBtn.style.display = 'none';
+      countdownMinutesInput.style.display = 'none';
+      countdownSecondsInput.style.display = 'none';
+      startBtn.style.display = 'none';
+      pauseBtn.style.display = 'inline-block';
+
+      clockContainer.addEventListener('click', (event) => {
+        if (event.target.closest('.player')) {
+          switchPlayer();
+        }
+      });
+    });
+
+    pauseBtn.addEventListener('click', () => {
+      isPaused = !isPaused;
+      pauseBtn.textContent = isPaused ? 'Resume' : 'Pause';
+    });
+
+    // Add 11 players with predefined names and 28 minutes each by default
+    const defaultPlayers = [
+      "Crows", "Badgers", "Vagabond 1", "Otters", "Cats", "Alliance", "Rats", "Lizards", "Moles", "Vagabond 2", "Birds"
+    ];
+
+    defaultPlayers.forEach(name => addPlayer(name, 28, 0));
+  </script>
+</body>
+</html>
